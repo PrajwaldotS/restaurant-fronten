@@ -6,6 +6,7 @@ import { MenuItem } from "../types/types"
 export default function WaiterPage() {
   const [menu, setMenu] = useState<MenuItem[]>([])
   const [selectedItems, setSelectedItems] = useState<number[]>([])
+  const [readyOrders, setReadyOrders] = useState<any[]>([])
   const [TableNumber, setTableNumber] = useState<number>(1)
 
   useEffect(() => {
@@ -38,6 +39,31 @@ export default function WaiterPage() {
     alert("Order placed!")
     setSelectedItems([])
   }
+  useEffect(() => {
+  const fetchReadyOrders = async () => {
+    const res = await fetch("http://localhost:1337/api/orders?populate=*")
+    const data = await res.json()
+
+    const ready = data.data.filter(
+      (order: any) => order.status_food === "ready"
+    )
+
+    setReadyOrders(ready)
+  }
+
+  fetchReadyOrders()
+  const interval = setInterval(fetchReadyOrders, 3000)
+  return () => clearInterval(interval)
+}, [])
+const markPicked = async (documentId: string) => {
+  await fetch(`http://localhost:1337/api/orders/${documentId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      data: { status_food: "picked" }
+    })
+  })
+}
 
   return (
   <div className="min-h-screen bg-gradient-to-br from-zinc-900 to-black text-white p-8">
@@ -46,7 +72,7 @@ export default function WaiterPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold tracking-tight">
-          🍽 Waiter Dashboard
+          Waiter Dashboard
         </h1>
         <p className="text-zinc-400 mt-2">
           Take customer orders and send them to the kitchen
@@ -120,6 +146,55 @@ export default function WaiterPage() {
       </div>
 
     </div>
+    {readyOrders.length > 0 && (
+  <div className="mt-16">
+
+    {/* Section Header */}
+    <div className="flex items-center justify-between mb-6">
+      <h2 className="text-3xl font-bold tracking-tight text-green-400">
+         Ready for Pickup
+      </h2>
+
+      <span className="bg-green-600/20 text-green-400 border border-green-500/40 px-3 py-1 rounded-full text-sm font-medium">
+        {readyOrders.length} Ready
+      </span>
+    </div>
+
+    {/* Orders Grid */}
+    <div className="grid md:grid-cols-2 gap-6">
+
+      {readyOrders.map(order => (
+        <div
+          key={order.documentId}
+          className="bg-gradient-to-br from-green-900/40 to-zinc-900 border border-green-500/40 rounded-2xl p-6 shadow-lg hover:scale-[1.02] transition-all duration-300"
+        >
+          {/* Top Row */}
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold">
+               Table {order.TableNumber}
+            </h3>
+
+            <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-medium border border-green-500/40">
+              READY
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-zinc-700 mb-4" />
+
+          {/* Action Button */}
+          <button
+            onClick={() => markPicked(order.documentId)}
+            className="w-full bg-green-600 hover:bg-green-700 active:scale-95 transition-all duration-200 px-4 py-3 rounded-xl font-semibold shadow-md"
+          >
+            ✅ Mark as Picked
+          </button>
+        </div>
+      ))}
+
+    </div>
+  </div>
+)}
   </div>
 )
 }

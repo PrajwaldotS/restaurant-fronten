@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 
 interface Order {
   id: number
+  documentId: string
   TableNumber: number
   status_food: string
   items: {
@@ -16,20 +17,20 @@ interface Order {
 export default function ChefPage() {
   const [orders, setOrders] = useState<Order[]>([])
 
-  const fetchOrders = async () => {
-    const res = await fetch("http://localhost:1337/api/orders?populate=*")
-    const data = await res.json()
-    setOrders(data.data)
-  }
+ const fetchOrders = async () => {
+  const res = await fetch("http://localhost:1337/api/orders?populate=*")
+  const data = await res.json()
 
-  useEffect(() => {
-    fetchOrders()
-    const interval = setInterval(fetchOrders, 3000)
-    return () => clearInterval(interval)
-  }, [])
+  const filtered = data.data.filter((order: any) =>
+    order.status_food !== "ready"
+  )
 
-  const updateStatus = async (id: number, status: string) => {
-    await fetch(`http://localhost:1337/api/orders/${id}`, {
+  setOrders(filtered)
+}
+  
+
+  const updateStatus = async (documentId: string, status: string) => {
+    await fetch(`http://localhost:1337/api/orders/${documentId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -39,6 +40,11 @@ export default function ChefPage() {
 
     fetchOrders()
   }
+  useEffect(() => {
+  fetchOrders()
+  const interval = setInterval(fetchOrders, 3000)
+  return () => clearInterval(interval)
+}, [])
 
  return (
   <div className="min-h-screen bg-gradient-to-br from-zinc-900 to-black text-white p-8">
@@ -104,14 +110,14 @@ export default function ChefPage() {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={() => updateStatus(order.id, "cooking")}
+                onClick={() => updateStatus(order.documentId, "cooking")}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all duration-200 px-4 py-2 rounded-xl font-medium shadow-md"
               >
                Start Cooking
               </button>
 
               <button
-                onClick={() => updateStatus(order.id, "ready")}
+                onClick={() => updateStatus(order.documentId, "ready")}
                 className="flex-1 bg-green-600 hover:bg-green-700 active:scale-95 transition-all duration-200 px-4 py-2 rounded-xl font-medium shadow-md"
               >
                 ✅ Mark Ready
