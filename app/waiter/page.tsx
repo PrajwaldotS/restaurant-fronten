@@ -8,6 +8,29 @@ export default function WaiterPage() {
   const [selectedItems, setSelectedItems] = useState<number[]>([])
   const [readyOrders, setReadyOrders] = useState<any[]>([])
   const [TableNumber, setTableNumber] = useState<number>(1)
+  const [pickedOrders, setPickedOrders] = useState<any[]>([])
+
+  useEffect(() => {
+  const fetchOrders = async () => {
+    const res = await fetch("http://localhost:1337/api/orders?populate=items")
+    const data = await res.json()
+
+    const ready = data.data.filter(
+      (order: any) => order.status_food === "ready"
+    )
+
+    const picked = data.data.filter(
+      (order: any) => order.status_food === "picked"
+    )
+
+    setReadyOrders(ready)
+    setPickedOrders(picked)
+  }
+
+  fetchOrders()
+  const interval = setInterval(fetchOrders, 3000)
+  return () => clearInterval(interval)
+}, [])
 
   useEffect(() => {
     fetch("http://localhost:1337/api/menus")
@@ -23,38 +46,35 @@ export default function WaiterPage() {
     }
   }
 
-  const placeOrder = async () => {
-    await fetch("http://localhost:1337/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        data: {
-          TableNumber,
-          status_food: "pending",
-          items: selectedItems
-        }
-      })
+const placeOrder = async () => {
+  // Validate table number
+  if (!TableNumber || TableNumber <= 0) {
+    alert("Please enter a valid table number")
+    return
+  }
+
+  // Validate items
+  if (selectedItems.length === 0) {
+    alert("Please select at least one item")
+    return
+  }
+
+  await fetch("http://localhost:1337/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      data: {
+        TableNumber,
+        status_food: "pending",
+        items: selectedItems
+      }
     })
+  })
 
-    alert("Order placed!")
-    setSelectedItems([])
-  }
-  useEffect(() => {
-  const fetchReadyOrders = async () => {
-    const res = await fetch("http://localhost:1337/api/orders?populate=*")
-    const data = await res.json()
+  alert("Order placed successfully!")
+  setSelectedItems([])
+}
 
-    const ready = data.data.filter(
-      (order: any) => order.status_food === "ready"
-    )
-
-    setReadyOrders(ready)
-  }
-
-  fetchReadyOrders()
-  const interval = setInterval(fetchReadyOrders, 3000)
-  return () => clearInterval(interval)
-}, [])
 const markPicked = async (documentId: string) => {
   await fetch(`http://localhost:1337/api/orders/${documentId}`, {
     method: "PUT",
@@ -64,6 +84,7 @@ const markPicked = async (documentId: string) => {
     })
   })
 }
+
 
   return (
   <div className="min-h-screen bg-gradient-to-br from-zinc-900 to-black text-white p-8">
@@ -138,57 +159,142 @@ const markPicked = async (documentId: string) => {
         </div>
 
         <button
-          onClick={placeOrder}
-          className="bg-red-600 hover:bg-red-700 active:scale-95 transition-all duration-200 px-8 py-3 rounded-xl font-semibold text-lg shadow-lg"
-        >
-           Place Order
-        </button>
+            onClick={placeOrder}
+            disabled={!TableNumber || selectedItems.length === 0}
+            className={`px-8 py-3 rounded-xl font-semibold shadow-lg transition
+              ${
+                !TableNumber || selectedItems.length === 0
+                  ? "bg-zinc-600 cursor-not-allowed"
+                  : "bg-red-600 hover:bg-red-700 active:scale-95"
+              }
+            `}
+          >
+            Place Order
+          </button>
       </div>
 
     </div>
-    {readyOrders.length > 0 && (
-  <div className="mt-16">
+  {readyOrders.map(order => {
 
-    {/* Section Header */}
+  const total = order.items?.reduce(
+    (sum: number, item: any) => sum + Number(item.Price),
+    0
+  ) || 0
+
+  return (
+    <div
+      key={order.documentId}
+      className="bg-gradient-to-br from-green-900/40 to-zinc-900 border border-green-500/40 rounded-2xl p-6 shadow-lg mt-4"
+    >
+
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-semibold">
+          Table {order.TableNumber}
+        </h3>
+
+        <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-medium border border-green-500/40">
+          READY
+        </span>
+      </div>
+
+      {/* Items */}
+      <div className="space-y-2 mb-4">
+        {order.items && order.items.length > 0 ? (
+          order.items.map((item: any) => (
+            <div
+              key={item.id}
+              className="flex justify-between bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2"
+            >
+              <span>{item.Name}</span>
+              <span className="text-red-400 font-medium">
+                ₹{item.Price}
+              </span>
+            </div>
+          ))
+        ) : (
+          <p className="text-zinc-500 italic">No items found</p>
+        )}
+      </div>
+
+      {/* Total */}
+      <div className="flex justify-between border-t border-zinc-700 pt-4 mb-4">
+        <span className="text-lg font-medium text-zinc-300">
+          Total
+        </span>
+        <span className="text-2xl font-bold text-green-400">
+          ₹{total}
+        </span>
+      </div>
+
+      {/* Button */}
+      <button
+        onClick={() => markPicked(order.documentId)}
+        className="w-full bg-green-600 hover:bg-green-700 active:scale-95 transition-all duration-200 px-4 py-3 rounded-xl font-semibold"
+      >
+        Mark as Picked
+      </button>
+
+    </div>
+  )
+})}
+{pickedOrders.length > 0 && (
+  <div className="mt-20">
+
+    {/* Header */}
     <div className="flex items-center justify-between mb-6">
-      <h2 className="text-3xl font-bold tracking-tight text-green-400">
-         Ready for Pickup
+      <h2 className="text-3xl font-bold tracking-tight text-zinc-400">
+      Order History
       </h2>
 
-      <span className="bg-green-600/20 text-green-400 border border-green-500/40 px-3 py-1 rounded-full text-sm font-medium">
-        {readyOrders.length} Ready
+      <span className="bg-zinc-700 text-zinc-300 px-3 py-1 rounded-full text-sm font-medium">
+        {pickedOrders.length} Completed
       </span>
     </div>
 
-    {/* Orders Grid */}
+    {/* History Grid */}
     <div className="grid md:grid-cols-2 gap-6">
 
-      {readyOrders.map(order => (
+      {pickedOrders.map(order => (
         <div
           key={order.documentId}
-          className="bg-gradient-to-br from-green-900/40 to-zinc-900 border border-green-500/40 rounded-2xl p-6 shadow-lg hover:scale-[1.02] transition-all duration-300"
+          className="bg-zinc-800 border border-zinc-700 rounded-2xl p-6 shadow-md opacity-80 hover:opacity-100 transition-all duration-300"
         >
-          {/* Top Row */}
+          {/* Top */}
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold">
-               Table {order.TableNumber}
+            <h3 className="text-lg font-semibold">
+            Table {order.TableNumber}
             </h3>
 
-            <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-medium border border-green-500/40">
-              READY
+            <span className="bg-zinc-700 text-zinc-300 px-3 py-1 rounded-full text-sm">
+              PICKED
             </span>
           </div>
 
           {/* Divider */}
           <div className="h-px bg-zinc-700 mb-4" />
 
-          {/* Action Button */}
-          <button
-            onClick={() => markPicked(order.documentId)}
-            className="w-full bg-green-600 hover:bg-green-700 active:scale-95 transition-all duration-200 px-4 py-3 rounded-xl font-semibold shadow-md"
-          >
-            ✅ Mark as Picked
-          </button>
+          {/* Items */}
+          <ul className="space-y-2">
+            <div className="space-y-2 mb-4">
+        {order.items && order.items.length > 0 ? (
+          order.items.map((item: any) => (
+            <div
+              key={item.id}
+              className="flex justify-between bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2"
+            >
+              <span>{item.Name}</span>
+              <span className="text-red-400 font-medium">
+                ₹{item.Price}
+              </span>
+            </div>
+          ))
+        ) : (
+          <p className="text-zinc-500 italic">No items found</p>
+        )}
+      </div>
+          </ul>
+
         </div>
       ))}
 

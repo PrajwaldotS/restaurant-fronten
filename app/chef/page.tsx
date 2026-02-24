@@ -17,17 +17,25 @@ interface Order {
 export default function ChefPage() {
   const [orders, setOrders] = useState<Order[]>([])
 
- const fetchOrders = async () => {
-  const res = await fetch("http://localhost:1337/api/orders?populate=*")
-  const data = await res.json()
 
-  const filtered = data.data.filter((order: any) =>
-    order.status_food !== "ready"
-  )
+  useEffect(() => {
+  const fetchOrders = async () => {
+    const res = await fetch("http://localhost:1337/api/orders?populate=items")
+    const data = await res.json()
 
-  setOrders(filtered)
-}
-  
+    const activeOrders = data.data.filter(
+      (order: any) =>
+        order.status_food === "pending" ||
+        order.status_food === "cooking"
+    )
+
+    setOrders(activeOrders)
+  }
+
+  fetchOrders()
+  const interval = setInterval(fetchOrders, 3000)
+  return () => clearInterval(interval)
+}, [])
 
   const updateStatus = async (documentId: string, status: string) => {
     await fetch(`http://localhost:1337/api/orders/${documentId}`, {
@@ -38,13 +46,8 @@ export default function ChefPage() {
       })
     })
 
-    fetchOrders()
   }
-  useEffect(() => {
-  fetchOrders()
-  const interval = setInterval(fetchOrders, 3000)
-  return () => clearInterval(interval)
-}, [])
+  
 
  return (
   <div className="min-h-screen bg-gradient-to-br from-zinc-900 to-black text-white p-8">
@@ -120,7 +123,7 @@ export default function ChefPage() {
                 onClick={() => updateStatus(order.documentId, "ready")}
                 className="flex-1 bg-green-600 hover:bg-green-700 active:scale-95 transition-all duration-200 px-4 py-2 rounded-xl font-medium shadow-md"
               >
-                ✅ Mark Ready
+                Mark Ready
               </button>
             </div>
           </div>
