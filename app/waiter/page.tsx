@@ -118,7 +118,7 @@ const markPicked = async (order: any) => {
         number: total,
         method: "cash",
         payment_status: "pending",
-        order: order.id   // ✅ CORRECT RELATION FIELD
+        order: order.id  
       }
     })
   })
