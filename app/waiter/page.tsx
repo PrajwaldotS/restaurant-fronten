@@ -12,7 +12,7 @@ export default function WaiterPage() {
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
-  // ✅ Centralized Fetch Orders (Stable + Sorted)
+  //  Centralized Fetch Orders (Stable + Sorted)
   const fetchOrders = async () => {
     try {
       const res = await fetch(
@@ -35,7 +35,7 @@ export default function WaiterPage() {
     }
   }
 
-  // ✅ Start Polling (Safe)
+  //  Start Polling (Safe)
   useEffect(() => {
     fetchOrders()
 
@@ -48,7 +48,7 @@ export default function WaiterPage() {
     }
   }, [])
 
-  // ✅ Fetch Menu Once
+  //  Fetch Menu Once
   useEffect(() => {
     fetch("http://localhost:1337/api/menus")
       .then(res => res.json())
