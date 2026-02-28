@@ -22,6 +22,7 @@ export default function ChefPage() {
   const fetchOrders = async () => {
     const res = await fetch("http://localhost:1337/api/orders?populate=items")
     const data = await res.json()
+    console.log("API response", data)
 
     const activeOrders = data.data.filter(
       (order: any) =>
