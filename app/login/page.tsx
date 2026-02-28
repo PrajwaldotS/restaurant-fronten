@@ -9,18 +9,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
+    setLoading(true)
 
     try {
       const res = await fetch(
         "http://localhost:1337/api/auth/local",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             identifier: email,
             password,
@@ -31,29 +32,47 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error?.message || "Login failed")
+        setError(data.error?.message || "Invalid credentials")
+        setLoading(false)
         return
       }
 
-      // Save token
-      localStorage.setItem("jwt", data.jwt)
-      localStorage.setItem("user", JSON.stringify(data.user))
+      // ✅ Now role comes directly from login response
+      const jwt = data.jwt
+      const user = data.user
+      const role = data.user.username  
+      
+      console.log(role)
+      if (!role) {
+        setError("User role not found")
+        setLoading(false)
+        return
+      }
 
-      // Role-based redirect
-      const role = data.user.role.name
+      // Save auth data
+      localStorage.setItem("jwt", jwt)
+      localStorage.setItem("user", JSON.stringify(user))
 
-      if (role === "waiter") {
-        router.push("/waiter")
-      } else if (role === "chef") {
-        router.push("/chef")
-      } else if (role === "admin") {
-        router.push("/admin")
-      } else {
-        router.push("/")
+      // Redirect based on role
+      switch (role) {
+        case "waiter":
+          router.push("/waiter")
+          break
+        case "chef":
+          router.push("/chef")
+          break
+        case "admin":
+          router.push("/admin")
+          break
+        default:
+          router.push("/")
       }
 
     } catch (err) {
-      setError("Something went wrong")
+      console.error("Login error:", err)
+      setError("Server error. Try again.")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -93,9 +112,10 @@ export default function LoginPage() {
 
         <button
           type="submit"
-          className="w-full bg-red-600 hover:bg-red-700 p-3 rounded-lg font-semibold"
+          disabled={loading}
+          className="w-full bg-red-600 hover:bg-red-700 p-3 rounded-lg font-semibold disabled:opacity-50"
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
       </form>
     </div>
