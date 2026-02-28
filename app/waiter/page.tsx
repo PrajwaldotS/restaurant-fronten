@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef } from "react"
 import { MenuItem } from "../types/types"
+import { useRouter } from "next/navigation"
+import { getUser } from "@/lib/auth"
 
 export default function WaiterPage() {
   const [menu, setMenu] = useState<MenuItem[]>([])
@@ -11,9 +13,17 @@ export default function WaiterPage() {
   const [TableNumber, setTableNumber] = useState<number>(1)
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const router = useRouter()
+  useEffect(() => {
+    const user = getUser()
+    if (!user || user.role.name !== "waiter") {
+      router.push("/login")
+    }
+  }, [])
 
   //  Centralized Fetch Orders (Stable + Sorted)
   const fetchOrders = async () => {
+     const router = useRouter()
     try {
       const res = await fetch(
         "http://localhost:1337/api/orders?populate=items&sort=createdAt:desc"

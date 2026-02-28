@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { getUser } from "@/lib/auth"
 
 interface Order {
   id: number
@@ -15,13 +17,21 @@ interface Order {
 }
 
 export default function ChefPage() {
+  const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
+  useEffect(() => {
+    const user = getUser()
+    if (!user || user.role.name !== "chef") {
+      router.push("/login")
+    }
+  }, [])
 
 
   useEffect(() => {
   const fetchOrders = async () => {
     const res = await fetch("http://localhost:1337/api/orders?populate=items")
     const data = await res.json()
+    console.log("API response", data)
 
     const activeOrders = data.data.filter(
       (order: any) =>
