@@ -75,7 +75,7 @@ export default function PaymentsPage() {
   }
 
   const totalRevenue = paidPayments.reduce(
-    (sum: number, p: any) => sum + Number(p.amount),
+    (sum: number, p: any) => sum + Number(p.number),
     0
   )
 
@@ -115,9 +115,9 @@ export default function PaymentsPage() {
 
             <div className="grid md:grid-cols-2 gap-6">
               {pendingPayments.map(payment => {
-                const tax = Number(payment.amount) * 0.05
+                const tax = Number(payment.number) * 0.05
                 const grandTotal =
-                  Number(payment.amount) + tax
+                  Number(payment.number) + tax
 
                 return (
                   <div
@@ -136,7 +136,7 @@ export default function PaymentsPage() {
                     <div className="space-y-2 mb-4">
                       <div className="flex justify-between">
                         <span>Subtotal</span>
-                        <span>₹{payment.amount}</span>
+                        <span>₹{payment.number}</span>
                       </div>
 
                       <div className="flex justify-between">
@@ -202,7 +202,7 @@ export default function PaymentsPage() {
                       Table {payment.order?.TableNumber}
                     </span>
                     <span className="text-green-400 font-bold">
-                      ₹{payment.amount}
+                      ₹{payment.number}
                     </span>
                   </div>
 
