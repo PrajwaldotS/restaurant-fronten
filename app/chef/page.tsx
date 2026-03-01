@@ -19,12 +19,7 @@ interface Order {
 export default function ChefPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
-  useEffect(() => {
-    const user = getUser()
-    if (!user || user.role.name !== "chef") {
-      router.push("/login")
-    }
-  }, [])
+ 
 
 
   useEffect(() => {

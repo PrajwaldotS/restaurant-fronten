@@ -1,6 +1,5 @@
-"use client";
-
-import { useEffect, useState,useRef } from "react";
+"use client"
+import { useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -24,93 +23,62 @@ interface Order {
   status_food: string;
   items: Item[];
 }
-
-export default function AdminDashboard() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null)
-
- useEffect(() => {
-  const fetchOrders = async () => {
-    try {
-      const res = await fetch("http://localhost:1337/api/orders?populate=items", {
-        cache: "no-store", // ensures fresh data
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-      setOrders(data.data || []);
-      setLoading(false);
-    } catch (error) {
-      console.error("Polling failed");
+interface Props{
+    data : {
+        data: Order[];
     }
-  };
+}
 
-  // Initial fetch immediately
-  fetchOrders();
-
-  // Start polling every 2 seconds
-  pollingRef.current = setInterval(fetchOrders, 2000);
-
-  // Cleanup when component unmounts
-  return () => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-    }
-  };
-}, []);
-
-  if (loading) {
-    return <div className="p-8">Loading analytics...</div>;
-  }
-
-
-  let totalRevenue = 0;
-  const itemCount: Record<string, number> = {};
-  const categoryCount: Record<string, Record<string, number>> = {
+export default function AdminDashboard({data}:Props){
+   const orders = data?.data || [];
+    const analytics  = useMemo(()=>{
+    let totalRevenue = 0;
+    const itemCount: Record<string, number> = {};
+    const categoryCount: Record<string, Record<string, number>> = {
     starter: {},
     main_course: {},
     dessert: {},
-  };
+    };
 
-  orders.forEach((order) => {
-    order.items?.forEach((item) => {
-      totalRevenue += item.Price;
+    orders.forEach((Order) => {
+    Order.items?.forEach((item) => {
+        totalRevenue += item.Price;
 
-      const name = item.Name;
-      const category = item.Category.trim().toLowerCase();
+        const name = item.Name;
+        const category = item.Category.trim().toLowerCase() || "";
 
       // Count overall
-      itemCount[name] = (itemCount[name] || 0) + 1;
+        itemCount[name] = (itemCount[name] || 0) + 1;
 
       // Count per category
-      if (categoryCount[category]) {
+        if (categoryCount[category]) {
         categoryCount[category][name] =
-          (categoryCount[category][name] || 0) + 1;
-      }
+            (categoryCount[category][name] || 0) + 1;
+        }
     });
-  });
-
-  const totalOrders = orders.length;
-
-  const getTopItem = (category: string) => {
+    });
+    const getTopItem = (category: string) => {
     const entries = Object.entries(categoryCount[category] || {});
     if (!entries.length) return "N/A";
     return entries.sort((a, b) => b[1] - a[1])[0][0];
-  };
-
-  const topStarter = getTopItem("starter");
-  const topMain = getTopItem("main_course");
-  const topDessert = getTopItem("dessert");
-
-  const chartData = Object.entries(itemCount).map(([name, count]) => ({
+    };
+    const topStarter = getTopItem("starter");
+    const topMain = getTopItem("main_course");
+    const topDessert = getTopItem("dessert");
+    const chartData = Object.entries(itemCount).map(([name, count]) => ({
     name,
     count,
   }));
+  const totalOrders = orders.length;
+  return {totalOrders,topDessert,topMain,topStarter, chartData,itemCount, categoryCount,totalRevenue}
+    },[orders])
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+    
+
+  
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-7xl mx-auto space-y-10">
 
         {/* Header */}
@@ -130,7 +98,7 @@ export default function AdminDashboard() {
               Total Revenue
             </p>
             <p className="mt-4 text-4xl font-bold text-emerald-600">
-              ₹ {totalRevenue}
+              ₹ {analytics.totalRevenue}
             </p>
           </div>
 
@@ -139,7 +107,7 @@ export default function AdminDashboard() {
               Total Orders
             </p>
             <p className="mt-4 text-4xl font-bold text-blue-600">
-              {totalOrders}
+              {analytics.totalOrders}
             </p>
           </div>
         </div>
@@ -156,7 +124,7 @@ export default function AdminDashboard() {
                 Top Starter
               </p>
               <p className="mt-3 text-2xl font-bold text-slate-800">
-                {topStarter}
+                {analytics.topStarter}
               </p>
             </div>
 
@@ -165,7 +133,7 @@ export default function AdminDashboard() {
                 Top Main Course
               </p>
               <p className="mt-3 text-2xl font-bold text-slate-800">
-                {topMain}
+                {analytics.topMain}
               </p>
             </div>
 
@@ -174,7 +142,7 @@ export default function AdminDashboard() {
                 Top Dessert
               </p>
               <p className="mt-3 text-2xl font-bold text-slate-800">
-                {topDessert}
+                {analytics.topDessert}
               </p>
             </div>
           </div>
@@ -188,7 +156,7 @@ export default function AdminDashboard() {
 
           <div className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
+              <BarChart data={analytics.chartData}>
                 <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
                 <XAxis dataKey="name" stroke="#64748b" />
                 <YAxis stroke="#64748b" />
@@ -201,5 +169,5 @@ export default function AdminDashboard() {
 
       </div>
     </div>
-  );
+    )
 }

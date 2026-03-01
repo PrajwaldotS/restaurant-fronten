@@ -13,17 +13,11 @@ export default function WaiterPage() {
   const [TableNumber, setTableNumber] = useState<number>(1)
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
-  const router = useRouter()
-  useEffect(() => {
-    const user = getUser()
-    if (!user || user.role.name !== "waiter") {
-      router.push("/login")
-    }
-  }, [])
+
 
   //  Centralized Fetch Orders (Stable + Sorted)
   const fetchOrders = async () => {
-     const router = useRouter()
+     
     try {
       const res = await fetch(
         "http://localhost:1337/api/orders?populate=items&sort=createdAt:desc"

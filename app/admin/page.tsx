@@ -1,18 +1,15 @@
-"use client"
+import AdminDashboard from '@/components/adminDashboard'
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { getUser } from "@/lib/auth"
-
-export default function WaiterPage() {
-  const router = useRouter()
-
-  useEffect(() => {
-    const user = getUser()
-    if (!user || user.role.name !== "admin") {
-      router.push("/login")
-    }
-  }, [])
-
-  return <div>Waiter Dashboard</div>
+async function getData(){
+  const res = await fetch("http://localhost:1337/api/orders?populate=items",
+   { cache:"no-store", }
+  );
+  if(!res.ok) throw new Error("Failed to fetch")
+  return res.json()
 }
+
+export default async function adminPage(){
+    const data = await getData()
+    return <AdminDashboard data={data}/>
+}
+
