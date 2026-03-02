@@ -8,10 +8,10 @@ export default function AdminLayout({
 }) {
   return (
     <div className="flex">
-      <Sidebar />
+      {/* <Sidebar /> */}
 
       <div className="flex flex-1 flex-col">
-        <Navbar />
+        {/* <Navbar /> */}
 
         <main className="flex-1 bg-zinc-50 p-6 dark:bg-zinc-950">
           {children}
