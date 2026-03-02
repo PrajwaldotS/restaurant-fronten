@@ -16,7 +16,7 @@ export default function WaiterPage() {
   const BASE_URL = "http://localhost:1337"
 
   /* ============================
-     FETCH ORDERS (Component Based)
+     FETCH ORDERS
   ============================ */
   const fetchOrders = async () => {
     try {
@@ -60,7 +60,7 @@ export default function WaiterPage() {
   }, [])
 
   /* ============================
-     TOGGLE ITEM WITH QUANTITY
+     TOGGLE ITEM
   ============================ */
   const toggleItem = (id: number) => {
     setSelectedItems(prev => {
@@ -75,6 +75,8 @@ export default function WaiterPage() {
   }
 
   const updateQuantity = (id: number, quantity: number) => {
+    if (quantity < 1) return
+
     setSelectedItems(prev =>
       prev.map(item =>
         item.id === id ? { ...item, quantity } : item
@@ -83,7 +85,7 @@ export default function WaiterPage() {
   }
 
   /* ============================
-     PLACE ORDER (Component Structure)
+     PLACE ORDER (NO SUBTOTAL SENT)
   ============================ */
   const placeOrder = async () => {
     if (!TableNumber || TableNumber <= 0) {
@@ -102,8 +104,7 @@ export default function WaiterPage() {
       return {
         menu: sel.id,
         quantity: sel.quantity,
-        price_at_time: Number(menuItem.Price),
-        subtotal: Number(menuItem.Price) * sel.quantity,
+        price_at_time: Number(menuItem?.Price || 0),
       }
     })
 
@@ -127,11 +128,7 @@ export default function WaiterPage() {
      MARK AS PICKED + CREATE PAYMENT
   ============================ */
   const markPicked = async (order: any) => {
-    const total =
-      order.item?.reduce(
-        (sum: number, i: any) => sum + Number(i.subtotal),
-        0
-      ) || 0
+    const total = Number(order.total_amount) || 0
 
     await fetch(`${BASE_URL}/api/orders/${order.documentId}`, {
       method: "PUT",
@@ -251,49 +248,40 @@ export default function WaiterPage() {
 
         {/* READY ORDERS */}
         <div className="space-y-6">
-          {readyOrders.map(order => {
-            const total =
-              order.item?.reduce(
-                (sum: number, i: any) =>
-                  sum + Number(i.price_at_time) * Number(i.quantity),
-                0
-              ) || 0
+          {readyOrders.map(order => (
+            <div
+              key={order.documentId}
+              className="bg-green-900/20 border border-green-500 rounded-xl p-6"
+            >
+              <h3 className="text-xl font-semibold mb-4">
+                Table {order.TableNumber}
+              </h3>
 
-            return (
-              <div
-                key={order.documentId}
-                className="bg-green-900/20 border border-green-500 rounded-xl p-6"
-              >
-                <h3 className="text-xl font-semibold mb-4">
-                  Table {order.TableNumber}
-                </h3>
-
-                {order.item?.map((i: any) => (
-                  <div
-                    key={i.id}
-                    className="flex justify-between mb-2"
-                  >
-                    <span>
-                      {i.menu?.Name} × {i.quantity}
-                    </span>
-                    <span>₹{Number(i.price_at_time) * Number(i.quantity)}</span>
-                  </div>
-                ))}
-
-                <div className="border-t border-green-500 mt-4 pt-4 flex justify-between font-bold">
-                  <span>Total</span>
-                  <span>₹{total}</span>
-                </div>
-
-                <button
-                  onClick={() => markPicked(order)}
-                  className="mt-4 w-full bg-green-600 py-3 rounded-lg"
+              {order.item?.map((i: any) => (
+                <div
+                  key={i.id}
+                  className="flex justify-between mb-2"
                 >
-                  Mark Picked
-                </button>
+                  <span>
+                    {i.menu?.Name} × {i.quantity}
+                  </span>
+                  <span>₹{i.subtotal}</span>
+                </div>
+              ))}
+
+              <div className="border-t border-green-500 mt-4 pt-4 flex justify-between font-bold">
+                <span>Total</span>
+                <span>₹{order.total_amount}</span>
               </div>
-            )
-          })}
+
+              <button
+                onClick={() => markPicked(order)}
+                className="mt-4 w-full bg-green-600 py-3 rounded-lg"
+              >
+                Mark Picked
+              </button>
+            </div>
+          ))}
         </div>
 
       </div>
