@@ -7,11 +7,17 @@ export default function PaymentsPage() {
   const [paidPayments, setPaidPayments] = useState<any[]>([])
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
+  const BASE_URL = "http://localhost:1337"
+
+  /* ============================
+     FETCH PAYMENTS (Deep Populate)
+  ============================ */
   const fetchPayments = async () => {
     try {
       const res = await fetch(
-        "http://localhost:1337/api/payments?populate=order&sort=createdAt:desc"
+        `${BASE_URL}/api/payments?populate[order][populate][item][populate]=menu&sort=createdAt:desc`
       )
+
       const data = await res.json()
 
       const pending = data.data.filter(
@@ -32,60 +38,78 @@ export default function PaymentsPage() {
   useEffect(() => {
     fetchPayments()
 
-    pollingRef.current = setInterval(() => {
-      fetchPayments()
-    }, 3000)
+    pollingRef.current = setInterval(fetchPayments, 3000)
 
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current)
     }
   }, [])
 
+  /* ============================
+     UPDATE METHOD
+  ============================ */
   const updateMethod = async (
     documentId: string,
     method: string
   ) => {
-    await fetch(
-      `http://localhost:1337/api/payments/${documentId}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: { method }
-        })
-      }
-    )
+    await fetch(`${BASE_URL}/api/payments/${documentId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data: { method },
+      }),
+    })
 
     fetchPayments()
   }
 
+  /* ============================
+     MARK AS PAID
+  ============================ */
   const markPaid = async (documentId: string) => {
-    await fetch(
-      `http://localhost:1337/api/payments/${documentId}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: { payment_status: "paid" }
-        })
-      }
-    )
+    await fetch(`${BASE_URL}/api/payments/${documentId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data: { payment_status: "paid" },
+      }),
+    })
 
     fetchPayments()
   }
 
+  /* ============================
+     SAFE SUBTOTAL CALCULATION
+  ============================ */
+  const calculateSubtotal = (payment: any) => {
+    const subtotal =
+      payment.order?.item?.reduce(
+        (sum: number, i: any) =>
+          sum +
+          (Number(i.price_at_time) || 0) *
+            (Number(i.quantity) || 0),
+        0
+      ) || Number(payment.number) || 0
+
+    return subtotal
+  }
+
+  /* ============================
+     TOTAL REVENUE
+  ============================ */
   const totalRevenue = paidPayments.reduce(
-    (sum: number, p: any) => sum + Number(p.number),
+    (sum: number, payment: any) =>
+      sum + calculateSubtotal(payment),
     0
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-900 to-black text-white p-8">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-zinc-950 text-white p-8">
+      <div className="max-w-6xl mx-auto space-y-12">
 
         {/* Header */}
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold tracking-tight">
+        <div>
+          <h1 className="text-4xl font-bold">
             Billing & Payments
           </h1>
           <p className="text-zinc-400 mt-2">
@@ -94,12 +118,12 @@ export default function PaymentsPage() {
         </div>
 
         {/* Revenue Overview */}
-        <div className="bg-zinc-800 border border-zinc-700 rounded-2xl p-6 shadow-lg mb-12">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
           <h2 className="text-xl font-semibold mb-4">
             Revenue Overview
           </h2>
           <p className="text-3xl font-bold text-green-400">
-            ₹{totalRevenue}
+            ₹{totalRevenue.toFixed(2)}
           </p>
           <p className="text-zinc-400 text-sm mt-1">
             Total Paid Revenue
@@ -108,23 +132,25 @@ export default function PaymentsPage() {
 
         {/* Pending Payments */}
         {pendingPayments.length > 0 && (
-          <div className="mb-16">
+          <div>
             <h2 className="text-2xl font-semibold text-yellow-400 mb-6">
               Pending Payments
             </h2>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-8">
               {pendingPayments.map(payment => {
-                const tax = Number(payment.number) * 0.05
-                const grandTotal =
-                  Number(payment.number) + tax
+                const subtotal =
+                  calculateSubtotal(payment)
+
+                const tax = subtotal * 0.05
+                const grandTotal = subtotal + tax
 
                 return (
                   <div
                     key={payment.documentId}
-                    className="bg-zinc-800 border border-zinc-700 rounded-2xl p-6 shadow-md"
+                    className="bg-zinc-900 border border-zinc-800 rounded-xl p-6"
                   >
-                    <div className="flex justify-between mb-4">
+                    <div className="flex justify-between mb-6">
                       <h3 className="font-semibold text-lg">
                         Table {payment.order?.TableNumber}
                       </h3>
@@ -133,29 +159,42 @@ export default function PaymentsPage() {
                       </span>
                     </div>
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex justify-between">
-                        <span>Subtotal</span>
-                        <span>₹{payment.number}</span>
-                      </div>
-
-                      <div className="flex justify-between">
-                        <span>Tax (5%)</span>
+                    {/* Item Breakdown */}
+                    {payment.order?.item?.map((i: any) => (
+                      <div
+                        key={i.id}
+                        className="flex justify-between text-sm text-zinc-300 mb-2"
+                      >
                         <span>
-                          ₹{tax.toFixed(2)}
+                          {i.menu?.Name} × {i.quantity}
+                        </span>
+                        <span>
+                          ₹
+                          {(Number(i.price_at_time) *
+                            Number(i.quantity)).toFixed(2)}
                         </span>
                       </div>
+                    ))}
 
-                      <div className="flex justify-between font-bold text-green-400 border-t border-zinc-700 pt-2">
-                        <span>Total</span>
-                        <span>
-                          ₹{grandTotal.toFixed(2)}
-                        </span>
-                      </div>
+                    <div className="border-t border-zinc-800 my-4" />
+
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>₹{subtotal.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>Tax (5%)</span>
+                      <span>₹{tax.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between font-bold text-green-400 border-t border-zinc-800 pt-3 mt-3">
+                      <span>Total</span>
+                      <span>₹{grandTotal.toFixed(2)}</span>
                     </div>
 
                     <select
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 mb-4"
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 mt-6 mb-4"
                       value={payment.method}
                       onChange={(e) =>
                         updateMethod(
@@ -173,7 +212,7 @@ export default function PaymentsPage() {
                       onClick={() =>
                         markPaid(payment.documentId)
                       }
-                      className="w-full bg-green-600 hover:bg-green-700 active:scale-95 transition px-4 py-3 rounded-xl font-semibold"
+                      className="w-full bg-green-600 hover:bg-green-700 transition px-4 py-3 rounded-lg font-semibold"
                     >
                       Mark as Paid
                     </button>
@@ -191,27 +230,32 @@ export default function PaymentsPage() {
               Paid Bills
             </h2>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              {paidPayments.map(payment => (
-                <div
-                  key={payment.documentId}
-                  className="bg-zinc-800 border border-zinc-700 rounded-2xl p-6 opacity-80"
-                >
-                  <div className="flex justify-between mb-2">
-                    <span>
-                      Table {payment.order?.TableNumber}
-                    </span>
-                    <span className="text-green-400 font-bold">
-                      ₹{payment.number}
-                    </span>
-                  </div>
+            <div className="grid md:grid-cols-2 gap-8">
+              {paidPayments.map(payment => {
+                const subtotal =
+                  calculateSubtotal(payment)
 
-                  <p className="text-zinc-400 text-sm">
-                    Method:{" "}
-                    {payment.method.toUpperCase()}
-                  </p>
-                </div>
-              ))}
+                return (
+                  <div
+                    key={payment.documentId}
+                    className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 opacity-80"
+                  >
+                    <div className="flex justify-between mb-2">
+                      <span>
+                        Table {payment.order?.TableNumber}
+                      </span>
+                      <span className="text-green-400 font-bold">
+                        ₹{subtotal.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <p className="text-zinc-400 text-sm">
+                      Method:{" "}
+                      {payment.method?.toUpperCase()}
+                    </p>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
