@@ -1,5 +1,4 @@
-import Sidebar from "./Sidebar"
-import Navbar from "./Navbar"
+import FloatingHomeButton from "@/components/FloatingHomeButton"
 
 export default function AdminLayout({
   children,
@@ -7,16 +6,11 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex">
-      {/* <Sidebar /> */}
+    <div className="flex flex-1 flex-col">
 
-      <div className="flex flex-1 flex-col">
-        {/* <Navbar /> */}
-
-        <main className="flex-1 bg-zinc-50 p-6 dark:bg-zinc-950">
+        <main className="flex-1">
           {children}
         </main>
       </div>
-    </div>
   )
 }

@@ -30,6 +30,7 @@ interface Props{
 }
 
 export default function AdminDashboard({data}:Props){
+  console.log(data)
    const orders = data?.data || [];
     const analytics  = useMemo(()=>{
     let totalRevenue = 0;
