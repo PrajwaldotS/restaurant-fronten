@@ -1,19 +1,26 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
+import { motion } from "framer-motion"
 
 export default function PaymentsPage() {
   const [pendingPayments, setPendingPayments] = useState<any[]>([])
   const [paidPayments, setPaidPayments] = useState<any[]>([])
   const [settings, setSettings] = useState<any>(null)
+  const [time, setTime] = useState<string>("")
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
-
   const BASE_URL = "http://localhost:1337"
 
-  /* ============================
-     FETCH RESTAURANT SETTINGS
-  ============================ */
+  /* ================= TIME HUD ================= */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTime(new Date().toLocaleTimeString())
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  /* ================= FETCH SETTINGS ================= */
   const fetchSettings = async () => {
     const res = await fetch(
       `${BASE_URL}/api/resturant-setting?populate=logo`
@@ -22,15 +29,12 @@ export default function PaymentsPage() {
     setSettings(data.data)
   }
 
-  /* ============================
-     FETCH PAYMENTS
-  ============================ */
+  /* ================= FETCH PAYMENTS ================= */
   const fetchPayments = async () => {
     try {
       const res = await fetch(
         `${BASE_URL}/api/payments?populate[order][populate][item][populate]=menu&sort=createdAt:desc`
       )
-
       const data = await res.json()
 
       const pending = data.data.filter(
@@ -51,17 +55,12 @@ export default function PaymentsPage() {
   useEffect(() => {
     fetchSettings()
     fetchPayments()
-
     pollingRef.current = setInterval(fetchPayments, 3000)
-
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current)
     }
   }, [])
 
-  /* ============================
-     CALCULATE SUBTOTAL
-  ============================ */
   const calculateSubtotal = (payment: any) => {
     return (
       payment.order?.item?.reduce(
@@ -74,9 +73,6 @@ export default function PaymentsPage() {
     )
   }
 
-  /* ============================
-     PRINT BILL
-  ============================ */
   const printBill = (payment: any) => {
     if (!settings) return
 
@@ -146,13 +142,9 @@ export default function PaymentsPage() {
             </tbody>
           </table>
 
-          <p class="total">Subtotal: ₹${subtotal.toFixed(
-            2
-          )}</p>
+          <p class="total">Subtotal: ₹${subtotal.toFixed(2)}</p>
           <p class="total">Tax (5%): ₹${tax.toFixed(2)}</p>
-          <p class="total">Grand Total: ₹${total.toFixed(
-            2
-          )}</p>
+          <p class="total">Grand Total: ₹${total.toFixed(2)}</p>
 
           <hr/>
           <p class="center">${
@@ -176,9 +168,6 @@ export default function PaymentsPage() {
     printWindow?.document.close()
   }
 
-  /* ============================
-     MARK PAID
-  ============================ */
   const markPaid = async (documentId: string) => {
     await fetch(`${BASE_URL}/api/payments/${documentId}`, {
       method: "PUT",
@@ -191,83 +180,153 @@ export default function PaymentsPage() {
     fetchPayments()
   }
 
+  const totalRevenue = paidPayments.reduce(
+    (sum, p) => sum + calculateSubtotal(p) * 1.05,
+    0
+  )
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-8">
-      <div className="max-w-6xl mx-auto space-y-10">
+    <div className="relative min-h-screen bg-black text-white overflow-hidden">
 
-        <h1 className="text-4xl font-bold">
-          Billing & Payments
-        </h1>
+      {/* Platinum Grid */}
+      <div className="absolute inset-0 opacity-[0.04] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] bg-[size:80px_80px]" />
 
-        {pendingPayments.map(payment => {
-          const subtotal = calculateSubtotal(payment)
-          const tax = subtotal * 0.05
-          const total = subtotal + tax
+      <div className="relative z-10 max-w-7xl mx-auto px-6 py-12 space-y-12">
 
-          return (
-            <div
-              key={payment.documentId}
-              className="bg-zinc-900 border border-zinc-800 rounded-xl p-6"
-            >
-              <div className="flex justify-between mb-4">
-                <h3>Table {payment.order?.TableNumber}</h3>
-                <span className="text-yellow-400">
-                  PENDING
-                </span>
-              </div>
+        {/* HEADER */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-between items-center"
+        >
+          <div>
+            <h1 className="text-4xl tracking-widest uppercase font-semibold">
+              Financial Control
+            </h1>
+            <p className="text-blue-400 text-sm mt-2 tracking-wider">
+              BILLING & TRANSACTIONS
+            </p>
+          </div>
 
-              <div className="mb-4">
-                {payment.order?.item?.map((i: any) => (
-                  <div
-                    key={i.id}
-                    className="flex justify-between"
-                  >
-                    <span>
-                      {i.menu?.Name} × {i.quantity}
-                    </span>
-                    <span>
-                      ₹
-                      {(Number(i.price_at_time) *
-                        Number(i.quantity)).toFixed(2)}
+          <div className="text-right font-mono text-blue-400">
+            <p className="text-xs opacity-60">SYSTEM TIME</p>
+            <p className="text-lg">{time}</p>
+            <p className="text-sm mt-2 text-white/60">
+              Revenue: ₹{totalRevenue.toFixed(2)}
+            </p>
+          </div>
+        </motion.div>
+
+        {/* SPLIT VIEW */}
+        <div className="grid lg:grid-cols-2 gap-10">
+
+          {/* PENDING */}
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold text-yellow-400">
+              Pending Payments
+            </h2>
+
+            {pendingPayments.map(payment => {
+              const subtotal = calculateSubtotal(payment)
+              const tax = subtotal * 0.05
+              const total = subtotal + tax
+
+              return (
+                <motion.div
+                  key={payment.documentId}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="backdrop-blur-xl bg-white/5 border border-yellow-400/30 rounded-2xl p-6"
+                >
+                  <div className="flex justify-between mb-4">
+                    <h3>Table {payment.order?.TableNumber}</h3>
+                    <span className="text-yellow-400 font-mono">
+                      PENDING
                     </span>
                   </div>
-                ))}
-              </div>
 
-              <div className="border-t border-zinc-800 pt-4 space-y-1">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>₹{subtotal.toFixed(2)}</span>
+                  <div className="space-y-2 mb-4">
+                    {payment.order?.item?.map((i: any) => (
+                      <div
+                        key={i.id}
+                        className="flex justify-between text-sm"
+                      >
+                        <span>
+                          {i.menu?.Name} × {i.quantity}
+                        </span>
+                        <span className="font-mono">
+                          ₹
+                          {(Number(i.price_at_time) *
+                            Number(i.quantity)).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-white/10 pt-4 space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>₹{subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax</span>
+                      <span>₹{tax.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-blue-400">
+                      <span>Total</span>
+                      <span>₹{total.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      markPaid(payment.documentId)
+                    }
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-500 transition px-4 py-3 rounded-xl font-medium"
+                  >
+                    Mark as Paid
+                  </button>
+
+                  <button
+                    onClick={() => printBill(payment)}
+                    className="w-full mt-3 bg-white/10 hover:bg-white/20 border border-white/20 transition px-4 py-3 rounded-xl font-medium"
+                  >
+                    Print Bill
+                  </button>
+                </motion.div>
+              )
+            })}
+          </div>
+
+          {/* PAID HISTORY */}
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold text-blue-400">
+              Completed Transactions
+            </h2>
+
+            {paidPayments.map(payment => {
+              const subtotal = calculateSubtotal(payment)
+              const total = subtotal * 1.05
+
+              return (
+                <div
+                  key={payment.documentId}
+                  className="backdrop-blur-xl bg-white/5 border border-blue-400/20 rounded-2xl p-6"
+                >
+                  <div className="flex justify-between">
+                    <span>
+                      Table {payment.order?.TableNumber}
+                    </span>
+                    <span className="font-mono text-blue-400">
+                      ₹{total.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Tax</span>
-                  <span>₹{tax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-green-400">
-                  <span>Total</span>
-                  <span>₹{total.toFixed(2)}</span>
-                </div>
-              </div>
+              )
+            })}
+          </div>
 
-              <button
-                onClick={() =>
-                  markPaid(payment.documentId)
-                }
-                className="w-full bg-green-600 hover:bg-green-700 transition px-4 py-3 rounded-lg font-semibold mt-4"
-              >
-                Mark as Paid
-              </button>
-
-              <button
-                onClick={() => printBill(payment)}
-                className="w-full bg-blue-600 hover:bg-blue-700 transition px-4 py-3 rounded-lg font-semibold mt-3"
-              >
-                Print Bill
-              </button>
-            </div>
-          )
-        })}
-
+        </div>
       </div>
     </div>
   )
