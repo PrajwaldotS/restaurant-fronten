@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { motion } from "framer-motion"
 
 interface OrderItem {
   id: number
@@ -24,12 +25,19 @@ interface Order {
 
 export default function ChefPage() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [time, setTime] = useState<string>("")
 
   const BASE_URL = "http://localhost:1337"
 
-  /* ============================
-     FETCH ORDERS (Component Based)
-  ============================ */
+  /* ================= TIME HUD ================= */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTime(new Date().toLocaleTimeString())
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  /* ================= FETCH ORDERS ================= */
   useEffect(() => {
     const fetchOrders = async () => {
       const res = await fetch(
@@ -51,9 +59,7 @@ export default function ChefPage() {
     return () => clearInterval(interval)
   }, [])
 
-  /* ============================
-     UPDATE STATUS
-  ============================ */
+  /* ================= UPDATE STATUS ================= */
   const updateStatus = async (
     documentId: string,
     status: string
@@ -67,51 +73,73 @@ export default function ChefPage() {
     })
   }
 
-  /* ============================
-     UI
-  ============================ */
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-8">
-      <div className="max-w-6xl mx-auto space-y-10">
+    <div className="relative min-h-screen bg-black text-white overflow-hidden">
 
-        {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold">
-            Chef Dashboard
-          </h1>
-          <p className="text-zinc-400 mt-2">
-            Manage incoming orders and update cooking status
-          </p>
-        </div>
+      {/* Tactical Grid Background */}
+      <div className="absolute inset-0 opacity-[0.04] bg-[linear-gradient(to_right,#1E90FF_1px,transparent_1px),linear-gradient(to_bottom,#1E90FF_1px,transparent_1px)] bg-[size:70px_70px]" />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-6 py-12 space-y-12">
+
+        {/* HEADER */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="flex justify-between items-center"
+        >
+          <div>
+            <h1 className="text-4xl tracking-widest uppercase font-semibold">
+              Chef Command
+            </h1>
+            <p className="text-blue-400 text-sm mt-2 tracking-wider">
+              ACTIVE COOKING OPERATIONS
+            </p>
+          </div>
+
+          <div className="text-right font-mono text-blue-400">
+            <p className="text-xs opacity-60">SYSTEM TIME</p>
+            <p className="text-lg">{time}</p>
+          </div>
+        </motion.div>
 
         {/* Orders Grid */}
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+
           {orders.map(order => {
             const total =
               order.item?.reduce(
-                (sum, i) => sum + Number(i.price_at_time) * Number(i.quantity),
+                (sum, i) =>
+                  sum +
+                  Number(i.price_at_time) *
+                    Number(i.quantity),
                 0
               ) || 0
-              
-              
+
+            const statusColor =
+              order.status_food === "pending"
+                ? "border-yellow-400/40 shadow-[0_0_25px_rgba(255,200,0,0.25)]"
+                : "border-blue-400/40 shadow-[0_0_25px_rgba(0,150,255,0.25)]"
+
             return (
-              <div
+              <motion.div
                 key={order.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 hover:border-zinc-600 transition"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className={`backdrop-blur-xl bg-white/5 border rounded-2xl p-6 transition ${statusColor}`}
               >
-                {/* Top Section */}
+                {/* Top */}
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-semibold">
+                  <h3 className="text-xl font-semibold tracking-wide">
                     Table {order.TableNumber}
                   </h3>
 
                   <span
-                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    className={`px-4 py-1 rounded-full text-xs font-mono tracking-wider ${
                       order.status_food === "pending"
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : order.status_food === "cooking"
-                        ? "bg-blue-500/20 text-blue-400"
-                        : "bg-green-500/20 text-green-400"
+                        ? "bg-yellow-500/20 text-yellow-300"
+                        : "bg-blue-500/20 text-blue-300"
                     }`}
                   >
                     {order.status_food.toUpperCase()}
@@ -123,28 +151,33 @@ export default function ChefPage() {
                   {order.item?.map(orderItem => (
                     <div
                       key={orderItem.id}
-                      className="flex justify-between bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3"
+                      className="flex justify-between bg-black/40 border border-white/10 rounded-xl px-4 py-3"
                     >
                       <div>
-                        <p className="font-medium">
+                        <p className="font-medium tracking-wide">
                           {orderItem.menu?.Name}
                         </p>
-                        <p className="text-xs text-zinc-400">
+                        <p className="text-xs text-white/40">
                           Qty: {orderItem.quantity}
                         </p>
                       </div>
 
-                      <span className="text-red-400 font-semibold">
-                        ₹{Number(orderItem.price_at_time) * Number(orderItem.quantity)}
+                      <span className="text-blue-400 font-mono">
+                        ₹
+                        {Number(
+                          orderItem.price_at_time
+                        ) * Number(orderItem.quantity)}
                       </span>
                     </div>
                   ))}
                 </div>
 
                 {/* Total */}
-                <div className="border-t border-zinc-700 pt-4 mb-6 flex justify-between font-semibold text-lg">
+                <div className="border-t border-white/10 pt-4 mb-6 flex justify-between font-semibold text-lg">
                   <span>Total</span>
-                  <span>₹{total}</span>
+                  <span className="font-mono text-blue-400">
+                    ₹{total}
+                  </span>
                 </div>
 
                 {/* Buttons */}
@@ -156,30 +189,39 @@ export default function ChefPage() {
                         "cooking"
                       )
                     }
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 transition px-4 py-3 rounded-lg font-medium"
+                    className="flex-1 bg-blue-600 hover:bg-blue-500 transition px-4 py-3 rounded-xl font-medium shadow-[0_0_20px_rgba(0,150,255,0.4)]"
                   >
                     Start Cooking
                   </button>
 
                   <button
                     onClick={() =>
-                      updateStatus(order.documentId, "ready")
+                      updateStatus(
+                        order.documentId,
+                        "ready"
+                      )
                     }
-                    className="flex-1 bg-green-600 hover:bg-green-700 transition px-4 py-3 rounded-lg font-medium"
+                    className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 transition px-4 py-3 rounded-xl font-medium"
                   >
                     Mark Ready
                   </button>
                 </div>
-              </div>
+              </motion.div>
             )
           })}
         </div>
 
+        {/* Empty State */}
         {orders.length === 0 && (
-          <div className="text-center text-zinc-500 mt-20 text-lg">
-            No active orders
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center text-white/40 mt-20 text-lg font-mono"
+          >
+            NO ACTIVE MISSIONS
+          </motion.div>
         )}
+
       </div>
     </div>
   )
